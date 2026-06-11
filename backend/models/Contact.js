@@ -1,26 +1,56 @@
-const mongoose = require('mongoose');
+// models/Contact.js
+// MySQL-based Contact model (replaces old Mongoose model)
 
-const contactSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Name is required'],
-    trim: true
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    trim: true,
-    lowercase: true
-  },
-  message: {
-    type: String,
-    required: [true, 'Message is required'],
-    trim: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
+const pool = require('../db/connection');
+
+class Contact {
+  /**
+   * Save a new contact message to the MySQL database.
+   * @param {string} name
+   * @param {string} email
+   * @param {string} message
+   * @returns {object} saved record
+   */
+  static async create({ name, email, message }) {
+    const sql = `
+      INSERT INTO contacts (name, email, message)
+      VALUES (?, ?, ?)
+    `;
+    const [result] = await pool.execute(sql, [name, email, message]);
+
+    // Return the newly inserted row
+    return {
+      id:         result.insertId,
+      name,
+      email,
+      message,
+      created_at: new Date()
+    };
   }
-});
 
-module.exports = mongoose.model('Contact', contactSchema);
+  /**
+   * Fetch all contact messages from the database.
+   * @returns {Array} list of contact records
+   */
+  static async findAll() {
+    const [rows] = await pool.execute(
+      'SELECT * FROM contacts ORDER BY created_at DESC'
+    );
+    return rows;
+  }
+
+  /**
+   * Find a contact message by ID.
+   * @param {number} id
+   * @returns {object|null}
+   */
+  static async findById(id) {
+    const [rows] = await pool.execute(
+      'SELECT * FROM contacts WHERE id = ?',
+      [id]
+    );
+    return rows[0] || null;
+  }
+}
+
+module.exports = Contact;
